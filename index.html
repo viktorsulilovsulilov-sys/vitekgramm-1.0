@@ -253,4 +253,5 @@
     setInterval(async ()=>{ const r=state.active; if(!r?.members) return; for(const uid of r.members){ if(state.users.has(uid)) continue; const us=await getDoc(doc(db,'users',uid)); const d=us.data()||{}; state.users.set(uid,{username:d.username||null,displayName:d.displayName||'Пользователь'}); } }, 4000);
   </script>
 </body>
+
 </html>
