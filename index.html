@@ -1,0 +1,256 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Vitekgram Online — группы, ссылки и ЛС (Spark)</title>
+  <style>
+    :root{ --bg:#0f1116; --bg2:#151923; --bg3:#0c0f14; --text:#e6e9ef; --muted:#a0a8b8; --accent:#6ea8fe; --accent2:#8fd3ff; --me:#2f6fed; --me2:#4b84ff; --border:#22293a; --shadow:0 10px 30px rgba(0,0,0,.35); }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    .top{position:sticky;top:0;z-index:5;display:flex;gap:8px;align-items:center;padding:12px;background:var(--bg2);border-bottom:1px solid var(--border);box-shadow:var(--shadow)}
+    .btn{min-width:40px;height:40px;display:grid;place-items:center;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text);cursor:pointer}
+    .title{flex:1;min-width:0}
+    .title b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .title small{color:var(--muted)}
+    .drawer{position:fixed;inset:0;display:none;z-index:10}
+    .drawer.open{display:block}
+    .scrim{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+    .panel{position:absolute;left:0;top:0;height:100%;width:min(92vw,420px);background:var(--bg2);border-right:1px solid var(--border);box-shadow:var(--shadow);transform:translateX(-100%);transition:.25s}
+    .drawer.open .panel{transform:translateX(0)}
+    .head{display:flex;gap:8px;align-items:center;padding:12px;border-bottom:1px solid var(--border)}
+    .avatar{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;color:#fff;font-weight:700}
+    .search{padding:10px 12px}
+    .search input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);color:var(--text)}
+    .chats{overflow:auto;max-height:calc(100% - 180px)}
+    .item{display:flex;gap:10px;align-items:center;padding:12px;border-bottom:1px solid var(--border);cursor:pointer}
+    .item:active{background:rgba(110,168,254,.12)}
+    .row{display:flex;justify-content:space-between;gap:8px}
+    .row b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .row time{color:var(--muted);font-size:12px}
+    .last{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 12px;border-top:1px solid var(--border)}
+    .mini{padding:10px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);text-align:center;cursor:pointer}
+    .msgs{height:calc(100vh - 160px);overflow:auto;padding:12px}
+    .m{display:flex;gap:8px;margin:10px 0;align-items:flex-end}
+    .m.me{flex-direction:row-reverse}
+    .av{width:34px;height:34px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;color:#fff;font-weight:700}
+    .bubble{max-width:88vw;padding:10px 12px;border-radius:14px;background:#1d2330;border:1px solid var(--border);box-shadow:var(--shadow);white-space:pre-wrap}
+    .m.me .bubble{background:linear-gradient(135deg,var(--me),var(--me2));color:#fff;border-color:transparent}
+    .meta{display:flex;gap:8px;color:var(--muted);margin-top:6px;font-size:12px}
+    .composer{position:sticky;bottom:0;display:flex;gap:8px;align-items:end;padding:8px;background:var(--bg2);border-top:1px solid var(--border)}
+    textarea{flex:1;min-height:44px;max-height:160px;resize:vertical;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--bg3);color:var(--text)}
+    .banner{position:fixed;left:8px;right:8px;bottom:8px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px;display:none}
+    .banner.show{display:block}
+  </style>
+</head>
+<body>
+  <div class="top">
+    <button id="bMenu" class="btn">☰</button>
+    <div class="title">
+      <b id="tTitle">Vitekgram Online (Spark)</b>
+      <small id="tSub">Загрузка…</small>
+    </div>
+    <button id="bInvite" class="btn" title="Ссылка‑приглашение">🔗</button>
+  </div>
+
+  <div id="msgs" class="msgs"></div>
+
+  <div class="composer">
+    <button id="bEmoji" class="btn">😊</button>
+    <textarea id="inp" placeholder="Сообщение… (Enter — отправить)"></textarea>
+    <button id="bSend" class="btn">➤</button>
+  </div>
+
+  <div id="drawer" class="drawer" aria-hidden="true">
+    <div class="scrim"></div>
+    <aside class="panel">
+      <div class="head">
+        <div id="meAv" class="avatar">VG</div>
+        <div style="flex:1">
+          <b id="meName">Гость</b><br>
+          <span style="color:#a0a8b8">Ник: <span id="meUser">@…</span></span>
+        </div>
+        <button id="bClose" class="btn">✕</button>
+      </div>
+      <div class="search"><input id="q" placeholder="Поиск чатов…"></div>
+      <div id="list" class="chats"></div>
+      <div class="actions">
+        <button id="bSetUser" class="mini">Установить ник</button>
+        <button id="bNewGroup" class="mini">＋ Группа</button>
+        <button id="bDM" class="mini">ЛС @ник</button>
+        <button id="bJoin" class="mini">Войти по ссылке</button>
+      </div>
+      <div class="sheet" style="padding:8px 12px;color:#a0a8b8">Кружочки/файлы отключены на Spark. Сообщения, ники, группы, ссылки, ЛС — работают.</div>
+    </aside>
+  </div>
+
+  <div id="banner" class="banner"></div>
+
+  <script type="module">
+    // Ваш firebaseConfig (из сообщения)
+    const firebaseConfig = {
+      apiKey: "AIzaSyCePztrsKcMZCEs0zV3lxkGtDnAX5oRxVM",
+      authDomain: "vitekgraam.firebaseapp.com",
+      projectId: "vitekgraam",
+      storageBucket: "vitekgraam.firebasestorage.app",
+      messagingSenderId: "516542487762",
+      appId: "1:516542487762:web:7ca6ad441e9761a31ba10b",
+      measurementId: "G-KM56QYTZ68"
+    };
+
+    // Импорт SDK с CDN
+    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+    const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    const { getFirestore, collection, doc, setDoc, getDoc, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, updateDoc, limit } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+
+    // Инициализация
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Утилиты/UI
+    const $=s=>document.querySelector(s); const on=(el,ev,fn)=>el.addEventListener(ev,fn);
+    const initials=s=>(s||'VG').split(/\s+/).slice(0,2).map(w=>w[0]?.toUpperCase()||'').join('');
+    const fmtTime=ts=>new Intl.DateTimeFormat(undefined,{hour:'2-digit',minute:'2-digit'}).format(ts?.toDate?.()?ts.toDate():new Date());
+    const fmtDate=ts=>new Intl.DateTimeFormat(undefined,{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(ts?.toDate?.()?ts.toDate():new Date());
+    const banner=$('#banner'); function tip(t){ banner.textContent=t; banner.classList.add('show'); clearTimeout(tip._t); tip._t=setTimeout(()=>banner.classList.remove('show'),6000); }
+
+    const state={ me:null, roomsUnsub:null, msgsUnsub:null, active:null, users:new Map() };
+
+    // Меню
+    const drawer=$('#drawer'); const openDrawer=()=>drawer.classList.add('open'); const closeDrawer=()=>drawer.classList.remove('open');
+    on($('#bMenu'),'click',openDrawer); on($('.scrim'),'click',closeDrawer); on($('#bClose'),'click',closeDrawer);
+    on($('#q'),'input',subRooms);
+
+    // Ввод/отправка
+    on($('#bEmoji'),'click',()=>{ const t=$('#inp'); t.value += (t.value && !/\s$/.test(t.value)) ? ' 😊' : '😊'; t.focus(); });
+    on($('#bSend'),'click',send); on($('#inp'),'keydown',e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
+
+    // Профиль/действия
+    on($('#bSetUser'),'click',setUsername); on($('#bNewGroup'),'click',newGroup); on($('#bInvite'),'click',copyInvite);
+    on($('#bJoin'),'click',joinByLink); on($('#bDM'),'click',openDM);
+
+    // Логин анонимно
+    try{ await signInAnonymously(auth); }catch(e){
+      if(e.code==='auth/operation-not-allowed') tip('Включите Anonymous в Authentication → Sign‑in method');
+      else if(e.code==='auth/unauthorized-domain') tip('Добавьте localhost/127.0.0.1 в Authorized domains');
+      else tip('Auth: '+e.message);
+    }
+
+    onAuthStateChanged(auth, async (user)=>{
+      if(!user) return;
+      const uid=user.uid;
+      const uref=doc(db,'users',uid);
+      if(!(await getDoc(uref)).exists()) await setDoc(uref,{displayName:'Гость',username:null,createdAt:serverTimestamp()});
+      const prof=(await getDoc(uref)).data()||{};
+      state.me={ uid, displayName:prof.displayName||'Гость', username:prof.username||null };
+      $('#meName').textContent=state.me.displayName; $('#meUser').textContent=state.me.username?('@'+state.me.username):'не задан'; $('#meAv').textContent=initials(state.me.displayName);
+      $('#tSub').textContent=state.me.username?('Вы: @'+state.me.username):('Вы: '+uid.slice(0,6));
+      await tryJoinFromURL();
+      subRooms();
+    });
+
+    // Комнаты
+    function subRooms(){
+      state.roomsUnsub?.();
+      const qRooms=query(collection(db,'rooms'), where('members','array-contains', state.me.uid));
+      state.roomsUnsub=onSnapshot(qRooms,(snap)=>{
+        const rooms=[]; snap.forEach(d=>rooms.push({id:d.id,...d.data()}));
+        rooms.sort((a,b)=>(b.updatedAt?.toMillis?.()||0)-(a.updatedAt?.toMillis?.()||0));
+        renderRooms(rooms);
+        if(!state.active && rooms[0]) openRoom(rooms[0]);
+      },err=>tip('Rooms: '+err.message));
+    }
+
+    function renderRooms(rooms){
+      const q=($('#q').value||'').toLowerCase(); const list=$('#list'); list.innerHTML='';
+      rooms.forEach(r=>{
+        const title=roomTitle(r); if(q && !title.toLowerCase().includes(q)) return;
+        const el=document.createElement('div'); el.className='item';
+        el.innerHTML=`<div class="avatar">${initials(title)}</div><div style="flex:1"><div class="row"><b>${title}</b><time>${r.updatedAt?fmtDate(r.updatedAt):''}</time></div><div class="last">${r.last||''}</div></div>`;
+        el.onclick=()=>{ openRoom(r); closeDrawer(); }; list.appendChild(el);
+      });
+    }
+
+    function roomTitle(r){
+      if(r.type==='group') return r.title||'Группа';
+      const other=(r.members||[]).find(u=>u!==state.me.uid);
+      const c=state.users.get(other); return c?.username?('@'+c.username):(c?.displayName||'Личные сообщения');
+    }
+
+    function openRoom(r){
+      state.active=r; $('#tTitle').textContent=r.type==='group'?(r.title||'Группа'):roomTitle(r);
+      $('#bInvite').style.visibility=r.type==='group'?'visible':'hidden';
+      state.msgsUnsub?.();
+      const qMsgs=query(collection(db,'rooms',r.id,'messages'), orderBy('createdAt','asc'), limit(200));
+      state.msgsUnsub=onSnapshot(qMsgs,(snap)=>{ const box=$('#msgs'); box.innerHTML=''; snap.forEach(d=>renderMsg({id:d.id,...d.data()},box)); box.scrollTop=box.scrollHeight+9999; });
+    }
+
+    function renderMsg(m,box){
+      const mine=m.from===state.me.uid;
+      const row=document.createElement('div'); row.className='m'+(mine?' me':'');
+      row.innerHTML=`<div class="av">${mine?initials(state.me.displayName):'U'}</div>
+        <div class="bubble"><div>${(m.text||'')}</div>
+        <div class="meta"><span>${mine?(state.me.displayName||'Вы'):(m.fromName||'Пользователь')}</span><span>${fmtTime(m.createdAt)}</span></div></div>`;
+      box.appendChild(row);
+    }
+
+    async function send(){
+      const ta=$('#inp'); const text=ta.value.trim(); if(!text||!state.active) return;
+      await addDoc(collection(db,'rooms',state.active.id,'messages'), { type:'text', text, from:state.me.uid, fromName:state.me.displayName||'', createdAt:serverTimestamp() });
+      await updateDoc(doc(db,'rooms',state.active.id), { last:text.slice(0,120), updatedAt:serverTimestamp() });
+      ta.value='';
+    }
+
+    async function setUsername(){
+      const v=prompt('Ник (латиница/цифры/_ 3–20):', state.me.username||''); if(v===null) return;
+      const name=(v||'').trim().toLowerCase(); if(!/^[a-z0-9_]{3,20}$/.test(name)){ tip('Некорректный ник'); return; }
+      const uref=doc(db,'usernames',name); const ex=await getDoc(uref);
+      if(ex.exists()&&ex.data().uid&&ex.data().uid!==state.me.uid){ tip('Ник занят'); return; }
+      if(state.me.username&&state.me.username!==name){ try{ await setDoc(doc(db,'usernames',state.me.username),{uid:null}); }catch{} }
+      await setDoc(uref,{uid:state.me.uid}); await updateDoc(doc(db,'users',state.me.uid), { username:name });
+      state.me.username=name; $('#meUser').textContent='@'+name; $('#tSub').textContent='Вы: @'+name; tip('Ник установлен: @'+name);
+    }
+
+    async function newGroup(){
+      const title=prompt('Название группы'); if(!title) return;
+      const id=crypto.randomUUID();
+      await setDoc(doc(db,'rooms',id), { type:'group', title:title.trim().slice(0,60), members:[state.me.uid], createdAt:serverTimestamp(), updatedAt:serverTimestamp(), last:'Группа создана' });
+      openRoom({id, type:'group', title, members:[state.me.uid]}); copyInvite();
+    }
+
+    function copyInvite(){
+      if(!state.active||state.active.type!=='group') return;
+      const url=`${location.origin}${location.pathname}#g=${state.active.id}`;
+      navigator.clipboard.writeText(url).then(()=>tip('Ссылка скопирована: '+url)).catch(()=>tip('Скопируйте ссылку: '+url));
+    }
+
+    async function tryJoinFromURL(){
+      const gid=(new URL(location.href)).hash.match(/g=([^&]+)/)?.[1]; if(!gid) return;
+      const rref=doc(db,'rooms',gid); const rs=await getDoc(rref);
+      if(!rs.exists()){ tip('Приглашение недействительно'); history.replaceState(null,'',location.pathname); return; }
+      const r=rs.data(); const mem=new Set(r.members||[]); if(!mem.has(state.me.uid)) await updateDoc(rref,{ members:[...mem, state.me.uid], updatedAt:serverTimestamp(), last:(r.last||'') });
+      openRoom({id:gid, ...r}); history.replaceState(null,'',location.pathname);
+    }
+
+    async function joinByLink(){
+      const url=prompt('Вставьте ссылку вида:\nhttps://site/#g=GROUP_ID'); if(!url) return;
+      try{ const gid=new URL(url).hash.match(/g=([^&]+)/)?.[1]; if(!gid) throw 0; location.hash='#g='+gid; await tryJoinFromURL(); }catch{ tip('Некорректная ссылка'); }
+    }
+
+    async function openDM(){
+      const uname=prompt('Введите ник без @'); if(!uname) return;
+      const us=await getDoc(doc(db,'usernames', uname.toLowerCase())); if(!us.exists()||!us.data().uid){ tip('Пользователь не найден'); return; }
+      const other=us.data().uid; if(other===state.me.uid){ tip('Это ваш ник'); return; }
+      const id=['dm', ...[state.me.uid,other].sort()].join('_'); const rref=doc(db,'rooms',id); const rs=await getDoc(rref);
+      if(!rs.exists()){ await setDoc(rref,{ type:'dm', members:[state.me.uid,other], createdAt:serverTimestamp(), updatedAt:serverTimestamp(), last:'ЛС открыта' }); }
+      openRoom({id, ...(rs.exists()?rs.data():{type:'dm', members:[state.me.uid,other]})}); closeDrawer();
+    }
+
+    // Кэш имён собеседников
+    setInterval(async ()=>{ const r=state.active; if(!r?.members) return; for(const uid of r.members){ if(state.users.has(uid)) continue; const us=await getDoc(doc(db,'users',uid)); const d=us.data()||{}; state.users.set(uid,{username:d.username||null,displayName:d.displayName||'Пользователь'}); } }, 4000);
+  </script>
+</body>
+</html>
